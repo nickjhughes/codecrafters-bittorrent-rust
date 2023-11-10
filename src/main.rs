@@ -1,10 +1,13 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{net::SocketAddrV4, path::PathBuf};
 
 mod bencode;
+mod peer;
 mod torrent;
 mod tracker;
+
+const PEER_ID: &str = "27454831420650771739";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -15,12 +18,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    Decode { input: String },
-    Info { path: PathBuf },
-    Peers { path: PathBuf },
+    Decode {
+        input: String,
+    },
+    Info {
+        path: PathBuf,
+    },
+    Peers {
+        path: PathBuf,
+    },
+    Handshake {
+        path: PathBuf,
+        peer_addr: SocketAddrV4,
+    },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -48,6 +62,13 @@ fn main() -> Result<()> {
             for peer in tracker::get_peers(&torrent)?.iter() {
                 println!("{:?}", peer);
             }
+        }
+        Command::Handshake { path, peer_addr } => {
+            let input = std::fs::read(path)?;
+            let torrent = torrent::Torrent::from_bytes(&input)?;
+
+            let peer_id = peer::handshake(&torrent, peer_addr).await?;
+            println!("Peer ID: {}", hex::encode(peer_id));
         }
     }
 

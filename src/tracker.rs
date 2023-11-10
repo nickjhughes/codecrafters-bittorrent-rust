@@ -2,9 +2,8 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use crate::{bencode::BencodeValue, torrent::Torrent};
+use crate::{bencode::BencodeValue, torrent::Torrent, PEER_ID};
 
-const PEER_ID: &str = "27454831420650771739";
 const PORT: u16 = 6881;
 
 #[derive(Debug, Serialize)]
