@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::{net::SocketAddrV4, path::PathBuf};
 
@@ -17,6 +17,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[clap(rename_all = "snake_case")]
 enum Command {
     Decode {
         input: String,
@@ -30,6 +31,12 @@ enum Command {
     Handshake {
         path: PathBuf,
         peer_addr: SocketAddrV4,
+    },
+    DownloadPiece {
+        #[arg(short)]
+        output_path: PathBuf,
+        path: PathBuf,
+        piece_index: usize,
     },
 }
 
@@ -67,8 +74,22 @@ async fn main() -> Result<()> {
             let input = std::fs::read(path)?;
             let torrent = torrent::Torrent::from_bytes(&input)?;
 
-            let peer_id = peer::handshake(&torrent, peer_addr).await?;
-            println!("Peer ID: {}", hex::encode(peer_id));
+            let connection = peer::PeerConnection::connect(torrent, peer_addr).await?;
+            println!("Peer ID: {}", hex::encode(connection.peer_id.unwrap()));
+        }
+        Command::DownloadPiece {
+            output_path,
+            path,
+            piece_index,
+        } => {
+            let input = std::fs::read(path)?;
+            let torrent = torrent::Torrent::from_bytes(&input)?;
+
+            let peers = tracker::get_peers(&torrent)?;
+            let peer_addr = peers.first().context("no peers found")?;
+
+            let mut connection = peer::PeerConnection::connect(torrent, *peer_addr).await?;
+            connection.download_piece(piece_index, output_path).await?;
         }
     }
 
