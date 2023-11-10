@@ -55,6 +55,9 @@ impl Torrent {
             .and_then(BencodeValue::as_byte_string)
             .map(|bs| bs.0.to_vec())
             .context("missing or invalid pieces field")?;
+        if pieces.len() % 20 != 0 {
+            anyhow::bail!("invalid pieces field");
+        }
 
         Ok(Torrent {
             announce,
@@ -95,5 +98,16 @@ impl Torrent {
         hasher.update(info_bencode.to_bytes());
         let result = hasher.finalize();
         hex::encode(result)
+    }
+}
+
+impl TorrentInfo {
+    pub fn piece_hashes(&self) -> Vec<&[u8]> {
+        let mut output = Vec::new();
+        for i in 0..self.pieces.len() / 20 {
+            let piece_hash = &self.pieces[i * 20..(i + 1) * 20];
+            output.push(piece_hash);
+        }
+        output
     }
 }

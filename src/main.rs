@@ -33,6 +33,11 @@ fn main() -> Result<()> {
             println!("Tracker URL: {}", torrent.announce);
             println!("Length: {}", torrent.info.length);
             println!("Info Hash: {}", torrent.info_hash());
+            println!("Piece Length: {}", torrent.info.piece_length);
+            println!("Piece Hashes:");
+            for hash in torrent.info.piece_hashes().iter() {
+                println!("{}", hex::encode(hash));
+            }
         }
     }
 
