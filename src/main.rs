@@ -38,6 +38,11 @@ enum Command {
         path: PathBuf,
         piece_index: usize,
     },
+    Download {
+        #[arg(short)]
+        output_path: PathBuf,
+        path: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -89,7 +94,19 @@ async fn main() -> Result<()> {
             let peer_addr = peers.first().context("no peers found")?;
 
             let mut connection = peer::PeerConnection::connect(torrent, *peer_addr).await?;
-            connection.download_piece(piece_index, output_path).await?;
+            connection.download_piece(piece_index, &output_path).await?;
+            println!("Piece {} downloaded to {:?}.", &piece_index, &output_path);
+        }
+        Command::Download { output_path, path } => {
+            let input = std::fs::read(&path)?;
+            let torrent = torrent::Torrent::from_bytes(&input)?;
+
+            let peers = tracker::get_peers(&torrent)?;
+            let peer_addr = peers.first().context("no peers found")?;
+
+            let mut connection = peer::PeerConnection::connect(torrent, *peer_addr).await?;
+            connection.download(&output_path).await?;
+            println!("Downloaded {:?} to {:?}.", &path, &output_path)
         }
     }
 

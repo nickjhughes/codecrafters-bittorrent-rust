@@ -1,6 +1,11 @@
 use anyhow::Result;
 use sha1::{Digest, Sha1};
-use std::{net::SocketAddrV4, path::PathBuf};
+use std::{
+    io::{Read, Write},
+    net::SocketAddrV4,
+    path::PathBuf,
+};
+use tempfile::TempDir;
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -333,7 +338,41 @@ impl PeerConnection {
         Ok(())
     }
 
-    pub async fn download_piece(&mut self, piece_index: usize, output_path: PathBuf) -> Result<()> {
+    pub async fn download<P>(&mut self, output_path: P) -> Result<()>
+    where
+        P: Into<PathBuf>,
+    {
+        let temp_dir = TempDir::new()?;
+        for i in 0..self.torrent.info.piece_count() {
+            let piece_path = {
+                let mut p = PathBuf::from(temp_dir.path());
+                p.push(format!("piece-{}", i));
+                p
+            };
+            self.download_piece(i, &piece_path).await?;
+        }
+
+        let mut file = std::fs::File::create(output_path.into())?;
+        let mut piece_buf = Vec::with_capacity(self.torrent.info.piece_length);
+        for i in 0..self.torrent.info.piece_count() {
+            piece_buf.clear();
+            let piece_path = {
+                let mut p = PathBuf::from(temp_dir.path());
+                p.push(format!("piece-{}", i));
+                p
+            };
+            let mut piece_file = std::fs::File::open(piece_path)?;
+            piece_file.read_to_end(&mut piece_buf)?;
+            file.write_all(&piece_buf)?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn download_piece<P>(&mut self, piece_index: usize, output_path: P) -> Result<()>
+    where
+        P: Into<PathBuf>,
+    {
         match self.state {
             PeerConnectionState::WaitingForBitfield => {
                 self.receive_bitfield().await?;
@@ -448,8 +487,7 @@ impl PeerConnection {
             anyhow::bail!("incorrect piece hash");
         }
 
-        std::fs::write(&output_path, &piece)?;
-        println!("Piece {} downloaded to {:?}.", piece_index, output_path);
+        std::fs::write(output_path.into(), &piece)?;
         Ok(())
     }
 }
