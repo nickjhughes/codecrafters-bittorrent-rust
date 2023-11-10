@@ -20,7 +20,8 @@ fn main() -> Result<()> {
 
     match cli.command {
         Command::Decode { input } => {
-            println!("{:?}", bencode::BencodeValue::from_str(&input)?);
+            let (_, value) = bencode::BencodeValue::from_str(&input)?;
+            println!("{}", value);
         }
     }
 

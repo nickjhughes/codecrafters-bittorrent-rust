@@ -1,7 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-// TODO: Borrow all these values, rather than reallocating
 #[derive(Debug, PartialEq, Eq)]
 pub enum BencodeValue<'input> {
     ByteString(BencodeByteString<'input>),
@@ -12,6 +11,48 @@ pub enum BencodeValue<'input> {
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct BencodeByteString<'input>(&'input [u8]);
+
+impl std::fmt::Display for BencodeByteString<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match std::str::from_utf8(self.0) {
+            Ok(s) => {
+                write!(f, "{}", s)
+            }
+            Err(_) => {
+                write!(f, "{:?}", self.0)
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for BencodeValue<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BencodeValue::ByteString(bs) => write!(f, "{}", bs),
+            BencodeValue::Integer(n) => write!(f, "{}", n),
+            BencodeValue::List(values) => {
+                write!(f, "[")?;
+                for (i, value) in values.iter().enumerate() {
+                    write!(f, "{}", value)?;
+                    if i < values.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "]")
+            }
+            BencodeValue::Dictionary(map) => {
+                write!(f, "{{")?;
+                for (i, (key, value)) in map.iter().enumerate() {
+                    write!(f, "{}:{}", key, value)?;
+                    if i < map.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "}}")
+            }
+        }
+    }
+}
 
 impl<'input> BencodeValue<'input> {
     pub fn from_str(input: &'input str) -> Result<(&str, Self)> {
