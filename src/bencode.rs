@@ -3,23 +3,23 @@ use std::collections::HashMap;
 
 // TODO: Borrow all these values, rather than reallocating
 #[derive(Debug, PartialEq, Eq)]
-pub enum BencodeValue {
-    ByteString(BencodeByteString),
+pub enum BencodeValue<'input> {
+    ByteString(BencodeByteString<'input>),
     Integer(i64),
-    List(Vec<BencodeValue>),
-    Dictionary(HashMap<BencodeByteString, BencodeValue>),
+    List(Vec<BencodeValue<'input>>),
+    Dictionary(HashMap<BencodeByteString<'input>, BencodeValue<'input>>),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-pub struct BencodeByteString(Vec<u8>);
+pub struct BencodeByteString<'input>(&'input [u8]);
 
-impl BencodeValue {
-    pub fn from_str(input: &str) -> Result<(&str, Self)> {
+impl<'input> BencodeValue<'input> {
+    pub fn from_str(input: &'input str) -> Result<(&str, Self)> {
         let (rest, value) = BencodeValue::from_bytes(input.as_bytes())?;
         Ok((std::str::from_utf8(rest)?, value))
     }
 
-    pub fn from_bytes(input: &[u8]) -> Result<(&[u8], Self)> {
+    pub fn from_bytes(input: &'input [u8]) -> Result<(&[u8], Self)> {
         match input[0] {
             b'0'..=b'9' => {
                 // Byte string
@@ -31,8 +31,7 @@ impl BencodeValue {
                         if delimiter_index + 1 + length > input.len() {
                             anyhow::bail!("premature end of byte string");
                         }
-                        let value =
-                            input[delimiter_index + 1..delimiter_index + 1 + length].to_vec();
+                        let value = &input[delimiter_index + 1..delimiter_index + 1 + length];
                         Ok((
                             &input[delimiter_index + 1 + length..],
                             BencodeValue::ByteString(BencodeByteString(value)),
@@ -145,10 +144,7 @@ mod tests {
             let input = "5:hello";
             let (rest, value) = BencodeValue::from_str(input).unwrap();
             assert!(rest.is_empty());
-            assert_eq!(
-                value,
-                BencodeValue::ByteString(BencodeByteString(b"hello".to_vec()))
-            );
+            assert_eq!(value, BencodeValue::ByteString(BencodeByteString(b"hello")));
         }
 
         {
@@ -156,10 +152,7 @@ mod tests {
             let input = b"1:\xEF";
             let (rest, value) = BencodeValue::from_bytes(input).unwrap();
             assert!(rest.is_empty());
-            assert_eq!(
-                value,
-                BencodeValue::ByteString(BencodeByteString(b"\xEF".to_vec()))
-            );
+            assert_eq!(value, BencodeValue::ByteString(BencodeByteString(b"\xEF")));
         }
 
         {
@@ -185,7 +178,7 @@ mod tests {
             assert_eq!(
                 value,
                 BencodeValue::List(vec![
-                    BencodeValue::ByteString(BencodeByteString(b"spam".to_vec())),
+                    BencodeValue::ByteString(BencodeByteString(b"spam")),
                     BencodeValue::Integer(42),
                 ])
             );
@@ -199,9 +192,9 @@ mod tests {
             assert_eq!(
                 value,
                 BencodeValue::List(vec![
-                    BencodeValue::ByteString(BencodeByteString(b"spam".to_vec())),
+                    BencodeValue::ByteString(BencodeByteString(b"spam")),
                     BencodeValue::List(vec![
-                        BencodeValue::ByteString(BencodeByteString(b"foo".to_vec())),
+                        BencodeValue::ByteString(BencodeByteString(b"foo")),
                         BencodeValue::Integer(0),
                     ]),
                     BencodeValue::Integer(42),
@@ -229,13 +222,10 @@ mod tests {
                 BencodeValue::Dictionary(
                     [
                         (
-                            BencodeByteString(b"bar".to_vec()),
-                            BencodeValue::ByteString(BencodeByteString(b"spam".to_vec()))
+                            BencodeByteString(b"bar"),
+                            BencodeValue::ByteString(BencodeByteString(b"spam"))
                         ),
-                        (
-                            BencodeByteString(b"foo".to_vec()),
-                            BencodeValue::Integer(42)
-                        )
+                        (BencodeByteString(b"foo"), BencodeValue::Integer(42))
                     ]
                     .into_iter()
                     .collect::<HashMap<_, _>>()
