@@ -1,15 +1,15 @@
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum BencodeValue<'input> {
     ByteString(BencodeByteString<'input>),
     Integer(i64),
     List(Vec<BencodeValue<'input>>),
-    Dictionary(HashMap<BencodeByteString<'input>, BencodeValue<'input>>),
+    Dictionary(BTreeMap<BencodeByteString<'input>, BencodeValue<'input>>),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BencodeByteString<'input>(&'input [u8]);
 
 impl std::fmt::Display for BencodeByteString<'_> {
@@ -112,7 +112,7 @@ impl<'input> BencodeValue<'input> {
             }
             b'd' => {
                 // Dictionary
-                let mut map = HashMap::new();
+                let mut map = BTreeMap::new();
                 let mut rest = &input[1..];
                 loop {
                     match rest.first() {
@@ -142,7 +142,7 @@ impl<'input> BencodeValue<'input> {
 #[cfg(test)]
 mod tests {
     use super::{BencodeByteString, BencodeValue};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     #[test]
     fn parse_integer() {
@@ -269,7 +269,7 @@ mod tests {
                         (BencodeByteString(b"foo"), BencodeValue::Integer(42))
                     ]
                     .into_iter()
-                    .collect::<HashMap<_, _>>()
+                    .collect::<BTreeMap<_, _>>()
                 )
             );
         }
