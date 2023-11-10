@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 mod bencode;
 mod torrent;
+mod tracker;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -16,6 +17,7 @@ struct Cli {
 enum Command {
     Decode { input: String },
     Info { path: PathBuf },
+    Peers { path: PathBuf },
 }
 
 fn main() -> Result<()> {
@@ -36,7 +38,15 @@ fn main() -> Result<()> {
             println!("Piece Length: {}", torrent.info.piece_length);
             println!("Piece Hashes:");
             for hash in torrent.info.piece_hashes().iter() {
-                println!("{}", hex::encode(hash));
+                println!("{}", hash);
+            }
+        }
+        Command::Peers { path } => {
+            let input = std::fs::read(path)?;
+            let torrent = torrent::Torrent::from_bytes(&input)?;
+
+            for peer in tracker::get_peers(&torrent)?.iter() {
+                println!("{:?}", peer);
             }
         }
     }

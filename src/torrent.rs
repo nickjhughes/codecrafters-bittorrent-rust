@@ -102,11 +102,11 @@ impl Torrent {
 }
 
 impl TorrentInfo {
-    pub fn piece_hashes(&self) -> Vec<&[u8]> {
+    pub fn piece_hashes(&self) -> Vec<String> {
         let mut output = Vec::new();
         for i in 0..self.pieces.len() / 20 {
             let piece_hash = &self.pieces[i * 20..(i + 1) * 20];
-            output.push(piece_hash);
+            output.push(hex::encode(piece_hash));
         }
         output
     }
