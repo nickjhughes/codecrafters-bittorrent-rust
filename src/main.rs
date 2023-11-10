@@ -1,7 +1,9 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 mod bencode;
+mod torrent;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -13,6 +15,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Decode { input: String },
+    Info { path: PathBuf },
 }
 
 fn main() -> Result<()> {
@@ -22,6 +25,13 @@ fn main() -> Result<()> {
         Command::Decode { input } => {
             let (_, value) = bencode::BencodeValue::from_str(&input)?;
             println!("{}", value);
+        }
+        Command::Info { path } => {
+            let input = std::fs::read(path)?;
+            let torrent = torrent::Torrent::from_bytes(&input)?;
+
+            println!("Tracker URL: {}", torrent.announce);
+            println!("Length: {}", torrent.info.length);
         }
     }
 

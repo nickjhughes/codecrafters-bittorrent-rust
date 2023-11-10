@@ -10,7 +10,7 @@ pub enum BencodeValue<'input> {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BencodeByteString<'input>(&'input [u8]);
+pub struct BencodeByteString<'input>(pub &'input [u8]);
 
 impl std::fmt::Display for BencodeByteString<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -135,6 +135,35 @@ impl<'input> BencodeValue<'input> {
                 Ok((&rest[1..], BencodeValue::Dictionary(map)))
             }
             _ => anyhow::bail!("invalid bencode value"),
+        }
+    }
+
+    pub fn as_byte_string(&self) -> Option<&BencodeByteString> {
+        match self {
+            BencodeValue::ByteString(bs) => Some(bs),
+            _ => None,
+        }
+    }
+
+    pub fn as_dictionary(&self) -> Option<&BTreeMap<BencodeByteString, BencodeValue>> {
+        match self {
+            BencodeValue::Dictionary(map) => Some(map),
+            _ => None,
+        }
+    }
+
+    pub fn as_integer(&self) -> Option<&i64> {
+        match self {
+            BencodeValue::Integer(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn as_list(&self) -> Option<&[BencodeValue]> {
+        match self {
+            BencodeValue::List(values) => Some(values),
+            _ => None,
         }
     }
 }
