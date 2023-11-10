@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use sha1::{Digest, Sha1};
+use std::collections::BTreeMap;
 
 use crate::bencode::{BencodeByteString, BencodeValue};
 
@@ -63,5 +65,35 @@ impl Torrent {
                 pieces,
             },
         })
+    }
+
+    pub fn info_hash(&self) -> String {
+        let info_bencode = BencodeValue::Dictionary(
+            [
+                (
+                    BencodeByteString(b"length"),
+                    BencodeValue::Integer(self.info.length as i64),
+                ),
+                (
+                    BencodeByteString(b"name"),
+                    BencodeValue::ByteString(BencodeByteString(self.info.name.as_bytes())),
+                ),
+                (
+                    BencodeByteString(b"piece length"),
+                    BencodeValue::Integer(self.info.piece_length as i64),
+                ),
+                (
+                    BencodeByteString(b"pieces"),
+                    BencodeValue::ByteString(BencodeByteString(&self.info.pieces)),
+                ),
+            ]
+            .into_iter()
+            .collect::<BTreeMap<_, _>>(),
+        );
+
+        let mut hasher = Sha1::new();
+        hasher.update(info_bencode.to_bytes());
+        let result = hasher.finalize();
+        hex::encode(result)
     }
 }

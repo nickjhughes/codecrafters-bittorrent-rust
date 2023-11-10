@@ -32,6 +32,7 @@ fn main() -> Result<()> {
 
             println!("Tracker URL: {}", torrent.announce);
             println!("Length: {}", torrent.info.length);
+            println!("Info Hash: {}", torrent.info_hash());
         }
     }
 

@@ -25,6 +25,16 @@ impl std::fmt::Display for BencodeByteString<'_> {
     }
 }
 
+impl<'input> BencodeByteString<'input> {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut output = Vec::new();
+        output.extend(self.0.len().to_string().as_bytes());
+        output.push(b':');
+        output.extend(self.0);
+        output
+    }
+}
+
 impl std::fmt::Display for BencodeValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -136,6 +146,36 @@ impl<'input> BencodeValue<'input> {
             }
             _ => anyhow::bail!("invalid bencode value"),
         }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut output = Vec::new();
+        match self {
+            BencodeValue::ByteString(bs) => {
+                output.extend(bs.to_bytes());
+            }
+            BencodeValue::Integer(i) => {
+                output.push(b'i');
+                output.extend(i.to_string().as_bytes());
+                output.push(b'e');
+            }
+            BencodeValue::List(values) => {
+                output.push(b'l');
+                for value in values {
+                    output.extend(value.to_bytes());
+                }
+                output.push(b'e');
+            }
+            BencodeValue::Dictionary(map) => {
+                output.push(b'd');
+                for (key, value) in map {
+                    output.extend(key.to_bytes());
+                    output.extend(value.to_bytes());
+                }
+                output.push(b'e');
+            }
+        }
+        output
     }
 
     pub fn as_byte_string(&self) -> Option<&BencodeByteString> {
