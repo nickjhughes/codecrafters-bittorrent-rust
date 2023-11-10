@@ -2,7 +2,7 @@ use anyhow::Result;
 use sha1::{Digest, Sha1};
 use std::{net::SocketAddrV4, path::PathBuf};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 
@@ -276,8 +276,6 @@ impl PeerConnection {
         connection.send_handshake().await?;
         connection.receive_handshake().await?;
 
-        connection.receive_bitfield().await?;
-
         Ok(connection)
     }
 
@@ -305,7 +303,13 @@ impl PeerConnection {
 
     async fn receive_message(&mut self) -> Result<PeerMessage> {
         let mut length_buf = [0; 4];
-        self.stream.read_exact(&mut length_buf).await?;
+        match self.stream.read_exact(&mut length_buf).await {
+            Err(ref e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                anyhow::bail!("connected reset by peer")
+            }
+            Err(e) => anyhow::bail!("failed to read from stream: {:?}", e),
+            _ => {}
+        };
         let length =
             u32::from_be_bytes([length_buf[0], length_buf[1], length_buf[2], length_buf[3]])
                 as usize;
@@ -330,16 +334,31 @@ impl PeerConnection {
     }
 
     pub async fn download_piece(&mut self, piece_index: usize, output_path: PathBuf) -> Result<()> {
-        assert_eq!(self.state, PeerConnectionState::ReadyToExpressInterest);
+        match self.state {
+            PeerConnectionState::WaitingForBitfield => {
+                self.receive_bitfield().await?;
+            }
+            PeerConnectionState::ReadyToExpressInterest | PeerConnectionState::ReadyToRequest => {}
+            _ => anyhow::bail!("invalid state {:?}", self.state),
+        }
 
-        let block_count = div_round_up(self.torrent.info.piece_length, BLOCK_LEN);
+        let piece_length = if piece_index == self.torrent.info.piece_count() - 1 {
+            if self.torrent.info.length % self.torrent.info.piece_length == 0 {
+                self.torrent.info.piece_length
+            } else {
+                self.torrent.info.length % self.torrent.info.piece_length
+            }
+        } else {
+            self.torrent.info.piece_length
+        };
+        let block_count = div_round_up(piece_length, BLOCK_LEN);
         let mut block_states = vec![BlockState::default(); block_count];
-        let last_block_len = if self.torrent.info.piece_length % BLOCK_LEN == 0 {
+        let last_block_len = if piece_length % BLOCK_LEN == 0 {
             BLOCK_LEN
         } else {
-            self.torrent.info.piece_length % BLOCK_LEN
+            piece_length % BLOCK_LEN
         };
-        let mut piece = vec![0; self.torrent.info.piece_length];
+        let mut piece = vec![0; piece_length];
 
         loop {
             match self.state {

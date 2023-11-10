@@ -110,4 +110,8 @@ impl TorrentInfo {
         }
         output
     }
+
+    pub fn piece_count(&self) -> usize {
+        self.pieces.len() / 20
+    }
 }
