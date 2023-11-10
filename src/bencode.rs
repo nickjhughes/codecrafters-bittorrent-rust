@@ -45,7 +45,7 @@ impl std::fmt::Display for BencodeValue<'_> {
                 for (i, (key, value)) in map.iter().enumerate() {
                     write!(f, "{}:{}", key, value)?;
                     if i < map.len() - 1 {
-                        write!(f, ", ")?;
+                        write!(f, ",")?;
                     }
                 }
                 write!(f, "}}")
