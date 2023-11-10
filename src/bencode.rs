@@ -16,7 +16,7 @@ impl std::fmt::Display for BencodeByteString<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match std::str::from_utf8(self.0) {
             Ok(s) => {
-                write!(f, "{}", s)
+                write!(f, "{:?}", s)
             }
             Err(_) => {
                 write!(f, "{:?}", self.0)
