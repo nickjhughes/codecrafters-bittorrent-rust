@@ -4,7 +4,7 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 
 use crate::{bencode::BencodeValue, torrent::Torrent};
 
-const PEER_ID: &'static str = "27454831420650771739";
+const PEER_ID: &str = "27454831420650771739";
 const PORT: u16 = 6881;
 
 #[derive(Debug, Serialize)]
